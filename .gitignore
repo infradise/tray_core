@@ -1,0 +1,43 @@
+# Dart / Flutter build & tool artifacts
+.dart_tool/
+.packages
+build/
+pubspec.lock
+doc/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Example build & ephemeral files
+example/.dart_tool/
+example/build/
+example/pubspec.lock
+example/.flutter-plugins
+example/.flutter-plugins-dependencies
+
+# Coverage & compiled JS
+coverage/
+*.dart.js
+*.info.json
+*.js_
+*.js.deps
+*.js.map
+
+# Environment & IDE files
+.env*
+.idea/
+**/.idea/
+.vscode/
+**/.vscode/
+*.iml
+**/*.iml
+*.ipr
+*.iws
+
+# macOS / Windows / Linux OS artifacts
+.DS_Store
+**/.DS_Store
+Thumbs.db
+**/xcuserdata/
+**/DerivedData/
+.swiftpm/
+**/.swiftpm/

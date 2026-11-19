@@ -1,0 +1,32 @@
+name: tray_core
+description: Pure-Dart and FFI cross-platform desktop system tray and popup menu engine for Flutter across Linux, macOS, and Windows.
+version: 1.0.0
+homepage: https://github.com/infradise/tray_core
+repository: https://github.com/infradise/tray_core
+issue_tracker: https://github.com/infradise/tray_core/issues
+topics:
+  - system-tray
+  - statusnotifieritem
+  - dbusmenu
+  - desktop
+  - menu
+
+platforms:
+  linux:
+  macos:
+  windows:
+
+environment:
+  sdk: '>=3.7.0 <4.0.0'
+  flutter: '>=3.29.0'
+
+dependencies:
+  dbus: ^0.8.0
+  flutter:
+    sdk: flutter
+  image: ^4.13.1
+  path: ^1.9.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
