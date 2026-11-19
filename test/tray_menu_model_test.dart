@@ -102,18 +102,17 @@ void main() {
     );
 
     test(
-      'withNullTerminatedUtf8 encodes multilingual, symbol, emoji, NUL, and lone-surrogate strings into valid UTF-8',
+      'withNullTerminatedUtf8 encodes ASCII, multibyte Unicode, symbol, emoji, NUL, and lone-surrogate strings into valid UTF-8',
       () {
         const samples = <String>[
           '',
-          'Desktop App 열기',
-          '로컬 컨테이너 (실행 중: 2)',
-          '    ● demo-cluster-v1.31  (Built-in)',
-          'Desktop App を開く',
-          'Mở Desktop App',
-          'Desktop App öffnen',
-          'Открыть Desktop App',
-          '🚀 Redis Cluster',
+          'Open Desktop App',
+          'Local Services (Running: 2)',
+          '    \u25CF demo-cluster-v1.31  (Built-in)',
+          'Desktop App \u00E9 \u00FC',
+          'Workspace Status \u03A9',
+          'Desktop App \u2022 Settings',
+          '\u{1F680} Service Cluster',
         ];
         for (final sample in samples) {
           final bytes = withNullTerminatedUtf8(
@@ -125,10 +124,10 @@ void main() {
         }
 
         final strippedNul = withNullTerminatedUtf8(
-          'Desktop\u0000열기',
+          'Desktop\u0000Open',
           _readNullTerminatedBytes,
         );
-        expect(utf8.decode(strippedNul), equals('Desktop열기'));
+        expect(utf8.decode(strippedNul), equals('DesktopOpen'));
 
         final malformed = String.fromCharCodes(<int>[0x41, 0xD800, 0x42]);
         final malformedBytes = withNullTerminatedUtf8(

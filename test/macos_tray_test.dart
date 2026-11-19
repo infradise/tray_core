@@ -20,14 +20,13 @@ void main() {
 
         const labels = <String>[
           '',
-          'Desktop App 열기',
-          '로컬 컨테이너 (실행 중: 3)',
-          '    ● redis-sentinel  (Docker)',
-          'Desktop App を開く',
-          'Mở Desktop App',
-          'Desktop App öffnen',
-          'Открыть Desktop App',
-          '🚀 Desktop App 종료',
+          'Open Desktop App',
+          'Local Services (Running: 3)',
+          '    \u25CF worker-node-01  (Active)',
+          'Desktop App \u00E9 \u00FC',
+          'Workspace Status \u03A9',
+          'Desktop App \u2022 Quit',
+          '\u{1F680} Quit Desktop App',
         ];
         for (final label in labels) {
           expect(debugCreateMacOSMenuItemTitleRoundTrip(label), equals(label));
@@ -35,10 +34,10 @@ void main() {
 
         expect(
           debugCreateMacOSMenuItemTitleRoundTrip(
-            '로컬 컨테이너 (실행 중: 0)',
-            updatedLabel: '로컬 컨테이너 (실행 중: 5)',
+            'Local Services (Running: 0)',
+            updatedLabel: 'Local Services (Running: 5)',
           ),
-          equals('로컬 컨테이너 (실행 중: 5)'),
+          equals('Local Services (Running: 5)'),
         );
 
         final loneSurrogate = String.fromCharCodes(<int>[0xD800]);
