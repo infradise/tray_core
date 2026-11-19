@@ -3,6 +3,10 @@
 library;
 
 export '../ffi/tray_native_memory.dart' show withNullTerminatedUtf8;
+export '../platform/macos/macos_objc_bindings.dart'
+    show
+        debugRunMacOSMenuActionDispatchProbe,
+        debugRunMacOSTerminateObserverProbe;
 export '../platform/macos/macos_tray_backend.dart'
     show debugCreateMacOSMenuItemTitleRoundTrip;
 export '../platform/windows/windows_dib_menu_bitmap.dart'

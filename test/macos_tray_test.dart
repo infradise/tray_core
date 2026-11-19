@@ -47,5 +47,21 @@ void main() {
         );
       },
     );
+
+    test(
+      'live macOS TrayCoreMenuTarget dispatches NSMenuItem click callbacks and wakes run loop',
+      () {
+        if (!Platform.isMacOS) return;
+        expect(debugRunMacOSMenuActionDispatchProbe(), isTrue);
+      },
+    );
+
+    test(
+      'live macOS TrayCoreTerminateObserver dispatches NSApplicationWillTerminateNotification cleanup callbacks',
+      () {
+        if (!Platform.isMacOS) return;
+        expect(debugRunMacOSTerminateObserverProbe(), isTrue);
+      },
+    );
   });
 }
