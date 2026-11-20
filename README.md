@@ -39,7 +39,7 @@ Pure-Dart and FFI cross-platform desktop system tray and popup menu engine for F
 
 ```yaml
 dependencies:
-  tray_core: ^1.0.0
+  tray_core: ^1.0.1
 ```
 
 ## Quick Start

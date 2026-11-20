@@ -1,7 +1,21 @@
+import 'dart:async' show Timer;
 import 'dart:ffi' as ffi;
 import 'dart:io';
 
+import 'package:flutter/widgets.dart' show WidgetsBinding;
+
 import '../../ffi/tray_native_memory.dart';
+
+void _wakeMacOSFlutterRunLoop() {
+  Timer.run(() {});
+  try {
+    WidgetsBinding.instance
+      ..ensureVisualUpdate()
+      ..scheduleFrame();
+  } catch (_) {
+    // WidgetsBinding may not be initialized in headless Dart VM tests.
+  }
+}
 
 /// Native `NSSize` ABI layout (`double width, double height`).
 final class NSSize extends ffi.Struct {
@@ -32,6 +46,7 @@ class MacOSTrayObjCBindings {
     required this.sendIdInitItem,
     required this.sendVoid,
     required this.sendVoidId,
+    required this.sendVoidId4,
     required this.sendVoidBool,
     required this.sendVoidInt,
     required this.sendVoidSize,
@@ -223,6 +238,21 @@ class MacOSTrayObjCBindings {
                   >
                 >()
                 .asFunction(),
+        sendVoidId4:
+            msgSend
+                .cast<
+                  ffi.NativeFunction<
+                    ffi.Void Function(
+                      ffi.Pointer<ffi.Void>,
+                      ffi.Pointer<ffi.Void>,
+                      ffi.Pointer<ffi.Void>,
+                      ffi.Pointer<ffi.Void>,
+                      ffi.Pointer<ffi.Void>,
+                      ffi.Pointer<ffi.Void>,
+                    )
+                  >
+                >()
+                .asFunction(),
         sendVoidBool:
             msgSend
                 .cast<
@@ -360,6 +390,18 @@ class MacOSTrayObjCBindings {
   )
   sendVoidId;
 
+  /// `void (*objc_msgSend)(id, SEL, id, SEL, id, id)` (e.g.
+  /// `-[NSNotificationCenter addObserver:selector:name:object:]`).
+  final void Function(
+    ffi.Pointer<ffi.Void>,
+    ffi.Pointer<ffi.Void>,
+    ffi.Pointer<ffi.Void>,
+    ffi.Pointer<ffi.Void>,
+    ffi.Pointer<ffi.Void>,
+    ffi.Pointer<ffi.Void>,
+  )
+  sendVoidId4;
+
   /// `void (*objc_msgSend)(id, SEL, BOOL)`.
   final void Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>, bool)
   sendVoidBool;
@@ -399,6 +441,18 @@ class MacOSTrayObjCBindings {
   _menuClickCallable;
 
   final Map<int, void Function()> _menuActionsByTag = <int, void Function()>{};
+
+  ffi.Pointer<ffi.Void>? _terminateObserverInstance;
+  bool _terminateObserverRegistered = false;
+  ffi.NativeCallable<
+    ffi.Void Function(
+      ffi.Pointer<ffi.Void>,
+      ffi.Pointer<ffi.Void>,
+      ffi.Pointer<ffi.Void>,
+    )
+  >?
+  _terminateCallable;
+  final Set<void Function()> _willTerminateCallbacks = <void Function()>{};
 
   /// Looks up and caches an Objective-C `Class` pointer by [name].
   ffi.Pointer<ffi.Void> getClass(String name) {
@@ -453,6 +507,92 @@ class MacOSTrayObjCBindings {
   /// Unregisters any action associated with `NSMenuItem.tag == [tag]`.
   void unregisterMenuAction(int tag) {
     _menuActionsByTag.remove(tag);
+  }
+
+  /// Registers [callback] to run synchronously when AppKit posts
+  /// `NSApplicationWillTerminateNotification` (e.g. Dock Quit or `Cmd+Q`) so
+  /// active `NSStatusItem` entries are removed cleanly from the menu bar.
+  bool registerWillTerminateCallback(void Function() callback) {
+    _willTerminateCallbacks.add(callback);
+    return _ensureTerminateObserverRegistered();
+  }
+
+  /// Unregisters a previously registered termination [callback].
+  void unregisterWillTerminateCallback(void Function() callback) {
+    _willTerminateCallbacks.remove(callback);
+  }
+
+  bool _ensureTerminateObserverRegistered() {
+    try {
+      final observer = _ensureTerminateObserverInstance();
+      if (observer == ffi.nullptr) return false;
+      if (_terminateObserverRegistered) return true;
+
+      final centerCls = getClass('NSNotificationCenter');
+      if (centerCls == ffi.nullptr) return false;
+      final defaultCenter = sendId(centerCls, sel('defaultCenter'));
+      final noteName = nsString('NSApplicationWillTerminateNotification');
+      if (defaultCenter == ffi.nullptr || noteName == ffi.nullptr) return false;
+
+      sendVoidId4(
+        defaultCenter,
+        sel('addObserver:selector:name:object:'),
+        observer,
+        sel('onTrayAppWillTerminate:'),
+        noteName,
+        ffi.nullptr,
+      );
+      _terminateObserverRegistered = true;
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  ffi.Pointer<ffi.Void> _ensureTerminateObserverInstance() {
+    final existing = _terminateObserverInstance;
+    if (existing != null && existing != ffi.nullptr) return existing;
+
+    _terminateCallable ??= ffi.NativeCallable<
+      ffi.Void Function(
+        ffi.Pointer<ffi.Void>,
+        ffi.Pointer<ffi.Void>,
+        ffi.Pointer<ffi.Void>,
+      )
+    >.isolateLocal(_handleAppWillTerminate);
+
+    var cls = getClass('TrayCoreTerminateObserver');
+    final actionSel = sel('onTrayAppWillTerminate:');
+    if (cls == ffi.nullptr) {
+      final nsObject = getClass('NSObject');
+      cls = TrayNativeMemory.withUtf8(
+        'TrayCoreTerminateObserver',
+        (name) => allocateClassPair(nsObject, name, 0),
+      );
+      TrayNativeMemory.withUtf8('v@:@', (types) {
+        addMethod(
+          cls,
+          actionSel,
+          _terminateCallable!.nativeFunction.cast(),
+          types,
+        );
+      });
+      registerClassPair(cls);
+    } else {
+      TrayNativeMemory.withUtf8('v@:@', (types) {
+        replaceMethod(
+          cls,
+          actionSel,
+          _terminateCallable!.nativeFunction.cast(),
+          types,
+        );
+      });
+    }
+
+    return _terminateObserverInstance = sendId(
+      sendId(cls, sel('alloc')),
+      sel('init'),
+    );
   }
 
   /// Lazily allocates and returns the singleton Objective-C
@@ -515,5 +655,94 @@ class MacOSTrayObjCBindings {
     if (objc == null || sender == ffi.nullptr) return;
     final tag = objc.sendInt(sender, objc.sel('tag'));
     objc._menuActionsByTag[tag]?.call();
+    _wakeMacOSFlutterRunLoop();
+  }
+
+  static void _handleAppWillTerminate(
+    ffi.Pointer<ffi.Void> self,
+    ffi.Pointer<ffi.Void> cmd,
+    ffi.Pointer<ffi.Void> notification,
+  ) {
+    final objc = instance;
+    if (objc == null) return;
+    final snapshot = List<void Function()>.of(objc._willTerminateCallbacks);
+    for (final callback in snapshot) {
+      try {
+        callback();
+      } catch (_) {
+        // Best-effort cleanup during OS termination.
+      }
+    }
+  }
+}
+
+/// Live macOS FFI probe verifying that `TrayCoreTerminateObserver` registers on
+/// `NSNotificationCenter.defaultCenter` and invokes registered cleanup
+/// callbacks via Objective-C `objc_msgSend`.
+bool debugRunMacOSTerminateObserverProbe() {
+  if (!Platform.isMacOS) return false;
+  final objc = MacOSTrayObjCBindings.instance;
+  if (objc == null) return false;
+
+  var disposed = false;
+  void onTerminate() {
+    disposed = true;
+  }
+
+  final registered = objc.registerWillTerminateCallback(onTerminate);
+  try {
+    final observer = objc._terminateObserverInstance;
+    if (!registered || observer == null || observer == ffi.nullptr) {
+      return false;
+    }
+    objc.sendVoidId(observer, objc.sel('onTrayAppWillTerminate:'), ffi.nullptr);
+    return disposed;
+  } finally {
+    objc.unregisterWillTerminateCallback(onTerminate);
+  }
+}
+
+/// Live macOS FFI probe verifying that `TrayCoreMenuTarget` dispatches
+/// `onTrayMenuItemClicked:` for a real `NSMenuItem` tag and wakes the Dart
+/// event loop without errors.
+bool debugRunMacOSMenuActionDispatchProbe() {
+  if (!Platform.isMacOS) return false;
+  final objc = MacOSTrayObjCBindings.instance;
+  if (objc == null) return false;
+
+  const probeTag = 987654;
+  var clicked = false;
+  objc.registerMenuAction(probeTag, () => clicked = true);
+
+  final nsMenuItemCls = objc.getClass('NSMenuItem');
+  final nsTitle = objc.nsString('Probe');
+  final nsKey = objc.nsString('');
+  if (nsMenuItemCls == ffi.nullptr ||
+      nsTitle == ffi.nullptr ||
+      nsKey == ffi.nullptr) {
+    objc.unregisterMenuAction(probeTag);
+    return false;
+  }
+
+  final item = objc.sendIdInitItem(
+    objc.sendId(nsMenuItemCls, objc.sel('alloc')),
+    objc.sel('initWithTitle:action:keyEquivalent:'),
+    nsTitle,
+    objc.sel('onTrayMenuItemClicked:'),
+    nsKey,
+  );
+  if (item == ffi.nullptr) {
+    objc.unregisterMenuAction(probeTag);
+    return false;
+  }
+
+  try {
+    final target = objc.ensureMenuTarget();
+    objc.sendVoidInt(item, objc.sel('setTag:'), probeTag);
+    objc.sendVoidId(target, objc.sel('onTrayMenuItemClicked:'), item);
+    return clicked;
+  } finally {
+    objc.unregisterMenuAction(probeTag);
+    objc.sendVoid(item, objc.sel('release'));
   }
 }

@@ -1,3 +1,11 @@
+## 1.0.1
+
+macOS AppKit tray lifecycle and click-responsiveness fixes (with zero modifications to the Linux and Windows backends).
+
+### macOS (`platform/macos/`)
+* **Automatic Status Bar Cleanup on OS Termination (`TrayCoreTerminateObserver`)**: Observe `NSApplicationWillTerminateNotification` using a Hot-Restart-safe Objective-C observer (`class_replaceMethod`) so `MacOSTrayBackend` automatically calls `dispose()` (`[[NSStatusBar systemStatusBar] removeStatusItem:]`) when the application exits via Dock Quit or `Cmd+Q`.
+* **Immediate Flutter Run-Loop Wakeup on Menu Click**: Schedule `Timer.run` + guarded `WidgetsBinding.instance..ensureVisualUpdate()..scheduleFrame()` inside `TrayCoreMenuTarget.onTrayMenuItemClicked:` so async menu click handlers execute immediately after returning from `NativeCallable.isolateLocal`.
+
 ## 1.0.0
 
 * Initial stable release of **`tray_core`** (`1.0.0`) — pure-Dart and FFI cross-platform desktop system tray and popup menu engine across **Linux**, **macOS**, and **Windows** with zero C++/CMake/Swift plugin wrappers and zero dependency on `tray_manager`, `nativeapi`, or `native_core`.

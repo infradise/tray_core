@@ -1,6 +1,6 @@
 name: tray_core
 description: Pure-Dart and FFI cross-platform desktop system tray and popup menu engine for Flutter across Linux, macOS, and Windows.
-version: 1.0.0
+version: 1.0.1
 homepage: https://github.com/infradise/tray_core
 repository: https://github.com/infradise/tray_core
 issue_tracker: https://github.com/infradise/tray_core/issues
