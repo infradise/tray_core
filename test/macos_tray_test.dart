@@ -57,10 +57,10 @@ void main() {
     );
 
     test(
-      'live macOS TrayCoreTerminateObserver dispatches NSApplicationWillTerminateNotification cleanup callbacks',
+      'macOS backend does not register any NSApplicationWillTerminateNotification FFI observer',
       () {
         if (!Platform.isMacOS) return;
-        expect(debugRunMacOSTerminateObserverProbe(), isTrue);
+        expect(debugHasMacOSTerminateObserverClass(), isFalse);
       },
     );
   });

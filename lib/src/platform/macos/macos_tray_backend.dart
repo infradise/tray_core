@@ -105,6 +105,7 @@ class _MacOSTrayMenuItem {
     objc?.unregisterMenuAction(commandId);
     if (nativeObject == ffi.nullptr) return;
     try {
+      objc?.sendVoidId(nativeObject, objc.sel('setTarget:'), ffi.nullptr);
       objc?.sendVoid(nativeObject, objc.sel('release'));
     } catch (_) {
       // Ignore release failure during process shutdown.
@@ -237,7 +238,6 @@ class MacOSTrayBackend<TIcon extends Enum> implements TrayBackend<TIcon> {
       }
       objc.sendVoid(statusItem, objc.sel('retain'));
       _statusItem = statusItem;
-      objc.registerWillTerminateCallback(dispose);
 
       final button = objc.sendId(statusItem, objc.sel('button'));
       if (button != ffi.nullptr) {
@@ -382,7 +382,6 @@ class MacOSTrayBackend<TIcon extends Enum> implements TrayBackend<TIcon> {
 
   @override
   void dispose() {
-    MacOSTrayObjCBindings.instance?.unregisterWillTerminateCallback(dispose);
     final menu = _menu;
     final items = List<_MacOSTrayMenuItem>.of(_items);
     final menuImages = List<_MacOSTrayImage>.of(_menuImages.values);

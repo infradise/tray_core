@@ -1,3 +1,10 @@
+## 1.0.2
+
+macOS termination crash (`SIGSEGV`) fix during Dock Quit / `Cmd+Q` (with zero modifications to the Linux and Windows backends).
+
+### macOS (`platform/macos/`)
+* **Eliminate `EXC_BAD_ACCESS (SIGSEGV)` in `-[NSApplication terminate:]`**: Remove `TrayCoreTerminateObserver` from `NSApplicationWillTerminateNotification`. Under Flutter macOS, `-[FlutterEngine applicationWillTerminate:]` shuts down the Dart isolate and unmaps `ffi.NativeCallable.isolateLocal` trampolines before subsequent `NSNotificationCenter` observers fire, causing an instruction abort during Dock Quit / `Cmd+Q`. macOS WindowServer already removes the process's `NSStatusItem` automatically when the process terminates, while explicit `MacOSTrayBackend.dispose()` continues to remove the item synchronously (and now clears `NSMenuItem.setTarget:nil` before releasing items).
+
 ## 1.0.1
 
 macOS AppKit tray lifecycle and click-responsiveness fixes (with zero modifications to the Linux and Windows backends).
